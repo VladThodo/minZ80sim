@@ -1,2 +1,2 @@
 # minZ80sim
-Python emulator for the minZ80 SBC
+An attempt at writing a Python emulator for the minZ80 SBC
