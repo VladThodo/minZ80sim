@@ -12,7 +12,7 @@ class Z80Core:
         pass
 
     def halt(self):
-        pass
+        self.set_halt_flag()
 
     def ld(self, register, value):
         pass
@@ -47,21 +47,61 @@ class Z80Core:
 
     def deca(self):
         self.A = (self.A - 1) & 0xff
+        self.check_for_zero('A')
 
     def decb(self):
         self.B = (self.B - 1) & 0xff
+        self.check_for_zero('B')
 
     def decc(self):
         self.C = (self.C - 1) & 0xff
+        self.check_for_zero('C')
 
     def decd(self):
         self.D = (self.D - 1) & 0xff
+        self.check_for_zero('D')
+
+    def inca(self):
+        self.A = (self.A + 1) & 0xff
+
+    def incb(self):
+        self.B = (self.B + 1) & 0xff
+
+    def incc(self):
+        self.C = (self.C + 1) & 0xff
+
+    def incd(self):
+        self.D = (self.D + 1) & 0xff
+
+    def jmp(self, addr):    # Absolute jump
+        self.PC = addr
+
+    def jr(self, amount):   # Relative jump
+        self.PC += amount
+
+    def rla(self):
+        pass
 
     def write_io(self, port_address):
         pass
 
     def read_io(self, port_address):
         pass
+
+    def check_for_zero(self, reg):
+        match reg:
+            case 'A':
+                if self.A == 0:
+                    self.set_zero_flag()
+            case 'B':
+                if self.B == 0:
+                    self.set_zero_flag()
+            case 'C':
+                if self.C == 0:
+                    self.set_zero_flag()
+            case 'D':
+                if self.D == 0:
+                    self.set_zero_flag()
 
     def __init__(self):
         # Init CPU registers
@@ -88,7 +128,7 @@ class Z80Core:
             0x01: self.not_defined,
             0x02: self.not_defined,
             0x03: self.not_defined,
-            0x04: self.inc,
+            0x04: self.incb,
             0x05: self.decb,
             0x06: self.ld,
             0x07: self.rlca,
@@ -96,13 +136,23 @@ class Z80Core:
             0x09: self.not_defined,
             0x0A: self.ld,
             0x0B: self.not_defined,
-            0x0C: self.inc,
+            0x0C: self.incc,
             0x0D: self.decc,
             0x0E: self.ld,
             0x0F: self.rrca,
             0x10: self.not_defined,
             0x11: self.not_defined,
-            0x12: self.not_defined
+            0x12: self.not_defined,
+            0x13: self.not_defined,
+            0x14: self.incd,
+            0x15: self.decd,
+            0x16: self.ld,
+            0x17: self.rla,
+            0x18: self.jr,
+            0x19: self.not_defined,
+            0x1A: self.not_defined,
+            0x1B: self.not_defined,
+            0x76: self.halt
         }
 
     def set_rom(self, rom: EEPROM):
@@ -114,6 +164,7 @@ class Z80Core:
         print(f"B: {format(self.B, format_str)} {hex(self.B)}")
         print(f"C: {format(self.C, format_str)} {hex(self.C)}")
         print(f"D: {format(self.D, format_str)} {hex(self.D)}")
+        print(f"PC: {format(self.PC, format_str)} {hex(self.PC)}")
 
     def dump_flags(self):
         print(f"Carry: {self.FLAGC}")
@@ -145,13 +196,17 @@ class Z80Core:
     def parse_instructions(self, instruction):
         self.instruction_dict[instruction]()
 
+    def inc_pc(self, step=1):
+        self.PC += step
+
     def run(self):
         if self.FLAGH == 1:
             print("CPU halted.")
             self.finish()
         else:
-            for inst in self.ROM.read_all():
-                self.parse_instructions(inst)
+            while self.FLAGH != 1 and self.PC < len(self.ROM.read_all()):
+                self.parse_instructions(self.ROM.read_all()[self.PC])
+                self.inc_pc()
             self.finish()
         pass
 

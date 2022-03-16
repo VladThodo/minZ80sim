@@ -2,10 +2,11 @@
 
 import hexdump
 
+
 class Memory:
 
     def __init__(self):
-        self.data = bytearray
+        self.data = bytearray()
         self.current_addr = 0x00
 
     def load_from_file(self, file):
@@ -31,3 +32,6 @@ class Memory:
 
     def read_all(self):
         return self.data
+
+    def __getitem__(self, item):
+        return self.data[item]
