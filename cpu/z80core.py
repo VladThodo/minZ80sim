@@ -11,76 +11,131 @@ class Z80Core:
     def nop(self):
         pass
 
+    def ldbc(self):
+        pass
+
+    def ldbc_addr(self):
+        pass
+
+    def incb(self):
+        self.B = (self.B + 1) & 0xff
+
+    def decb(self):
+        self.B = (self.B - 1) & 0xff
+        self.check_for_zero('B')
+
+    def ldb(self):
+        self.B = self.immediate_value
+
+    def rlca(self):
+        pass
+
+    def exaf(self):
+        pass
+
+    def add_hl_bc(self):
+        pass
+
+    def lda_bc_addr(self):
+        pass
+
+    def decbc(self):
+        pass
+
+    def incc(self):
+        self.C = (self.C + 1) & 0xff
+
+    def decc(self):
+        self.C = (self.C - 1) & 0xff
+        self.check_for_zero('C')
+
+    def ldc(self):
+        pass
+
+    def rrca(self):
+        pass
+
+    def djnz(self):
+        pass
+
+    def ldde(self):
+        pass
+
+    def ldde_a(self):
+        pass
+
+    def incde(self):
+        pass
+
+    def decd(self):
+        self.D = (self.D - 1) & 0xff
+        self.check_for_zero('D')
+
+    def ldd(self):
+        self.D = self.immediate_value
+
+    def rla(self):
+        pass
+
+    def jr(self, amount):  # Relative jump
+        self.PC += amount
+
+    def add_hl_de(self):
+        pass
+
+    def lda_de(self):
+        pass
+
+    def dec_de(self):
+        pass
+
+    def ince(self):
+        pass
+
+    def dece(self):
+        pass
+
+    def lde(self):
+        pass
+
+    def lda(self):
+        self.A = self.immediate_value
+
+    def rra(self):
+        pass
+
+    def jp_z(self):     # Jump if Z flag is set, useful for multiplication
+        if self.FLAGZ == 1:
+            self.PC = int.from_bytes(self.jp_address, "big")
+        else:
+            self.PC += 3
+
     def halt(self):
         self.set_halt_flag()
 
     def ld(self, register, value):
         pass
 
-    def inc(self, register):
-        match register:
-            case 'A':
-                self.A += 1
-            case 'B':
-                self.B += 1
-            case 'C':
-                self.C += 1
-            case 'D':
-                self.D += 1
-
-    def dec(self, register):
-        match register:
-            case 'A':
-                self.A -= 1
-            case 'B':
-                self.B -= 1
-            case 'C':
-                self.C -= 1
-            case 'D':
-                self.D -= 1
-
-    def rlca(self):
-        pass
-
-    def rrca(self):
-        pass
-
     def deca(self):
         self.A = (self.A - 1) & 0xff
         self.check_for_zero('A')
 
-    def decb(self):
-        self.B = (self.B - 1) & 0xff
-        self.check_for_zero('B')
-
-    def decc(self):
-        self.C = (self.C - 1) & 0xff
-        self.check_for_zero('C')
-
-    def decd(self):
-        self.D = (self.D - 1) & 0xff
-        self.check_for_zero('D')
-
     def inca(self):
         self.A = (self.A + 1) & 0xff
-
-    def incb(self):
-        self.B = (self.B + 1) & 0xff
-
-    def incc(self):
-        self.C = (self.C + 1) & 0xff
 
     def incd(self):
         self.D = (self.D + 1) & 0xff
 
-    def jmp(self, addr):    # Absolute jump
-        self.PC = addr
+    def jp(self):    # Absolute jump
+        self.PC = int.from_bytes(self.jp_address, "big")
+        #print(f"Jumped at address {self.PC}")
 
-    def jr(self, amount):   # Relative jump
-        self.PC += amount
-
-    def rla(self):
+    def incbc(self):
         pass
+
+    def addab(self):
+        self.A = (self.A + self.B) & 0xff
+
 
     def write_io(self, port_address):
         pass
@@ -117,7 +172,8 @@ class Z80Core:
         self.FLAGH = 0  # Halt flag
 
         self.immediate_value = 0
-
+        self.pc_step = 1
+        self.jp_address = 0
         # Init memory
         self.ROM = EEPROM()
 
@@ -130,7 +186,7 @@ class Z80Core:
             0x03: self.not_defined,
             0x04: self.incb,
             0x05: self.decb,
-            0x06: self.ld,
+            0x06: self.ldb,
             0x07: self.rlca,
             0x08: self.not_defined,
             0x09: self.not_defined,
@@ -146,12 +202,16 @@ class Z80Core:
             0x13: self.not_defined,
             0x14: self.incd,
             0x15: self.decd,
-            0x16: self.ld,
+            0x16: self.ldd,
             0x17: self.rla,
             0x18: self.jr,
             0x19: self.not_defined,
             0x1A: self.not_defined,
             0x1B: self.not_defined,
+            0xC3: self.jp,
+            0xCA: self.jp_z,
+            0x3E: self.lda,
+            0x80: self.addab,
             0x76: self.halt
         }
 
@@ -160,7 +220,7 @@ class Z80Core:
 
     def dump_registers(self):
         format_str = '#010b'
-        print(f"A: {format(self.A, format_str)} {hex(self.A)}")
+        print(f"A: {format(self.A, format_str)} {hex(self.A)} {self.A}")
         print(f"B: {format(self.B, format_str)} {hex(self.B)}")
         print(f"C: {format(self.C, format_str)} {hex(self.C)}")
         print(f"D: {format(self.D, format_str)} {hex(self.D)}")
@@ -199,16 +259,36 @@ class Z80Core:
     def inc_pc(self, step=1):
         self.PC += step
 
+    def load_immediate(self):
+        self.immediate_value = self.ROM[self.PC + 1]
+        self.pc_step = 2
+
+    def load_jp_address(self):
+        addr = bytearray(bytes([self.ROM[self.PC + 2]]))
+        addr.append(self.ROM[self.PC + 1])
+        self.jp_address = addr
+        self.pc_step = 0
+
     def run(self):
-        if self.FLAGH == 1:
-            print("CPU halted.")
-            self.finish()
-        else:
-            while self.FLAGH != 1 and self.PC < len(self.ROM.read_all()):
-                self.parse_instructions(self.ROM.read_all()[self.PC])
-                self.inc_pc()
-            self.finish()
-        pass
+        while self.FLAGH != 1 and self.PC < len(self.ROM.read_all()):
+
+            self.pc_step = 1
+            match self.ROM[self.PC]:
+                case 0x06:          # Load B, immediate
+                    self.load_immediate()
+                case 0x16:          # Load D, immediate
+                    self.load_immediate()
+                case 0x3E:
+                    self.load_immediate()
+                case 0xC3:
+                    self.load_jp_address()
+                case 0xCA:
+                    self.load_jp_address()
+
+            self.parse_instructions(self.ROM[self.PC])
+            if self.PC != len(self.ROM.read_all()) - 1:
+                self.inc_pc(self.pc_step)
+        self.finish()
 
     def finish(self):
         self.dump_registers()

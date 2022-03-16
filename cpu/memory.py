@@ -16,6 +16,7 @@ class Memory:
         pass
 
     def set_starting_address(self, address):
+        self.current_addr = address
         pass
 
     def read(self, address):

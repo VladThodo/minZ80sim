@@ -5,9 +5,14 @@ from eeprom import EEPROM
 
 cpu = Z80Core()
 
+
+def show_help():
+    pass
+
+
 if len(sys.argv) > 1:
     if sys.argv[1] == "help":
-        help()
+        show_help()
     else:
         file = open(sys.argv[1], 'rb')  # Read binary ROM image
         rom = EEPROM()
