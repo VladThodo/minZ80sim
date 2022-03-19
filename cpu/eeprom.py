@@ -4,4 +4,6 @@ from memory import Memory
 
 
 class EEPROM(Memory):
-    pass
+
+    def size(self):
+        return len(self.data)

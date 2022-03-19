@@ -2,7 +2,7 @@
 # Probably not the best way of implementing this, but it works
 
 from eeprom import EEPROM
-
+from ram import RAM
 
 class Z80Core:
 
@@ -101,6 +101,21 @@ class Z80Core:
     def lda(self):
         self.A = self.immediate_value
 
+    def ldhl(self):
+        self.HL = self.immediate_value
+
+    def lda_pointer(self):
+        self.A = self.ROM[self.immediate_value]
+
+    def ldba(self):
+        self.B = self.A
+
+    def ldda(self):
+        self.D = self.A
+
+    def ldmema(self):
+        self.RAM.write(self.A, self.immediate_value)
+
     def rra(self):
         pass
 
@@ -128,7 +143,7 @@ class Z80Core:
 
     def jp(self):    # Absolute jump
         self.PC = int.from_bytes(self.jp_address, "big")
-        #print(f"Jumped at address {self.PC}")
+        # print(f"Jumped at address {self.PC}")
 
     def incbc(self):
         pass
@@ -136,6 +151,12 @@ class Z80Core:
     def addab(self):
         self.A = (self.A + self.B) & 0xff
 
+    def addaa(self):
+        self.A = (self.A + self.A) & 0xff
+
+    def subb(self):
+        self.A = (self.A - self.B) & 0xff
+        self.check_for_zero('A')
 
     def write_io(self, port_address):
         pass
@@ -164,6 +185,7 @@ class Z80Core:
         self.B = 0
         self.C = 0
         self.D = 0
+        self.HL = 0
 
         self.PC = 0  # Program counter
         # CPU flags
@@ -176,6 +198,9 @@ class Z80Core:
         self.jp_address = 0
         # Init memory
         self.ROM = EEPROM()
+        self.RAM = RAM(128)
+
+        self.ram_start_addr = 0
 
         # Instruction-function mapping in a dictionary
 
@@ -208,15 +233,26 @@ class Z80Core:
             0x19: self.not_defined,
             0x1A: self.not_defined,
             0x1B: self.not_defined,
+            0x21: self.ldhl,
+            0x32: self.ldmema,
+            0x47: self.ldba,
+            0x57: self.ldda,
             0xC3: self.jp,
             0xCA: self.jp_z,
             0x3E: self.lda,
+            0x3A: self.lda_pointer,
             0x80: self.addab,
+            0x87: self.addaa,
+            0x90: self.subb,
             0x76: self.halt
         }
 
     def set_rom(self, rom: EEPROM):
         self.ROM = rom
+
+    def set_ram(self, ram: RAM, start_addr):
+        self.RAM = ram
+        self.ram_start_addr = 0
 
     def dump_registers(self):
         format_str = '#010b'
@@ -224,11 +260,13 @@ class Z80Core:
         print(f"B: {format(self.B, format_str)} {hex(self.B)}")
         print(f"C: {format(self.C, format_str)} {hex(self.C)}")
         print(f"D: {format(self.D, format_str)} {hex(self.D)}")
+        print(f"HL: {format(self.HL, format_str)} {hex(self.HL)}")
         print(f"PC: {format(self.PC, format_str)} {hex(self.PC)}")
 
     def dump_flags(self):
         print(f"Carry: {self.FLAGC}")
         print(f"Zero: {self.FLAGZ}")
+        print(f"Halt: {self.FLAGH}")
 
     def set_carry_flag(self):
         self.FLAGC = 1
@@ -263,6 +301,12 @@ class Z80Core:
         self.immediate_value = self.ROM[self.PC + 1]
         self.pc_step = 2
 
+    def load_immediate_two_bytes(self):
+        data = bytearray(bytes([self.ROM[self.PC + 2]]))
+        data.append(self.ROM[self.PC + 1])
+        self.immediate_value = int.from_bytes(data, "big")
+        self.pc_step = 3
+
     def load_jp_address(self):
         addr = bytearray(bytes([self.ROM[self.PC + 2]]))
         addr.append(self.ROM[self.PC + 1])
@@ -284,6 +328,12 @@ class Z80Core:
                     self.load_jp_address()
                 case 0xCA:
                     self.load_jp_address()
+                case 0x21:
+                    self.load_immediate_two_bytes()
+                case 0x3A:
+                    self.load_immediate_two_bytes()
+                case 0x32:
+                    self.load_immediate_two_bytes()
 
             self.parse_instructions(self.ROM[self.PC])
             if self.PC != len(self.ROM.read_all()) - 1:
@@ -293,4 +343,5 @@ class Z80Core:
     def finish(self):
         self.dump_registers()
         self.dump_flags()
+        self.RAM.dump_contents()
 

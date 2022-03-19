@@ -2,6 +2,7 @@ import sys  # We need those thicc juicy CLI arguments, oh boy
 
 from z80core import Z80Core
 from eeprom import EEPROM
+from ram import RAM
 
 cpu = Z80Core()
 
@@ -16,8 +17,10 @@ if len(sys.argv) > 1:
     else:
         file = open(sys.argv[1], 'rb')  # Read binary ROM image
         rom = EEPROM()
+        ram = RAM(64)
         rom.load_from_file(file)
         cpu.set_rom(rom)
+        cpu.set_ram(ram, len(rom.read_all()))
         print("Machine code to execute: ")
         rom.dump_contents()
         print("\n")
