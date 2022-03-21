@@ -3,13 +3,17 @@
 
 from eeprom import EEPROM
 from ram import RAM
+import sys
+sys.path.append("../")
+
+from util import logger as log
 
 class Z80Core:
 
     # Instruction set for the CPU
 
     def nop(self):
-        pass
+        log.log_event(f"Executed NOP at {hex(self.PC)}")
 
     def ldbc(self):
         pass
@@ -19,6 +23,7 @@ class Z80Core:
 
     def incb(self):
         self.B = (self.B + 1) & 0xff
+        log.log_event(f"Incremented B register - current value: {hex(self.B)}")
 
     def decb(self):
         self.B = (self.B - 1) & 0xff
@@ -70,6 +75,7 @@ class Z80Core:
     def decd(self):
         self.D = (self.D - 1) & 0xff
         self.check_for_zero('D')
+        log.log_event(f"Decremented D register - current value {hex(self.D)}")
 
     def ldd(self):
         self.D = self.immediate_value
@@ -119,7 +125,7 @@ class Z80Core:
     def rra(self):
         pass
 
-    def jp_z(self):     # Jump if Z flag is set, useful for multiplication
+    def jp_z(self):  # Jump if Z flag is set, useful for multiplication
         if self.FLAGZ == 1:
             self.PC = int.from_bytes(self.jp_address, "big")
         else:
@@ -141,7 +147,7 @@ class Z80Core:
     def incd(self):
         self.D = (self.D + 1) & 0xff
 
-    def jp(self):    # Absolute jump
+    def jp(self):  # Absolute jump
         self.PC = int.from_bytes(self.jp_address, "big")
         # print(f"Jumped at address {self.PC}")
 
@@ -318,9 +324,9 @@ class Z80Core:
 
             self.pc_step = 1
             match self.ROM[self.PC]:
-                case 0x06:          # Load B, immediate
+                case 0x06:  # Load B, immediate
                     self.load_immediate()
-                case 0x16:          # Load D, immediate
+                case 0x16:  # Load D, immediate
                     self.load_immediate()
                 case 0x3E:
                     self.load_immediate()
@@ -344,4 +350,3 @@ class Z80Core:
         self.dump_registers()
         self.dump_flags()
         self.RAM.dump_contents()
-
